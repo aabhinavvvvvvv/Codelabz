@@ -1,30 +1,65 @@
-version: "3.3"
+version: "3.8"
 
 services:
+  # ── Production build (nginx, port 80) ───────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_APP_FIREBASE_API_KEY: ${VITE_APP_FIREBASE_API_KEY}
+        VITE_APP_AUTH_DOMAIN: ${VITE_APP_AUTH_DOMAIN}
+        VITE_APP_FIREBASE_PROJECT_ID: ${VITE_APP_FIREBASE_PROJECT_ID}
+        VITE_APP_FIREBASE_MESSAGING_SENDER_ID: ${VITE_APP_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_APP_FIREBASE_APP_ID: ${VITE_APP_FIREBASE_APP_ID}
+        VITE_APP_FIREBASE_MEASUREMENTID: ${VITE_APP_FIREBASE_MEASUREMENTID}
+        VITE_APP_DATABASE_URL: ${VITE_APP_DATABASE_URL}
+        VITE_APP_FIREBASE_STORAGE_BUCKET: ${VITE_APP_FIREBASE_STORAGE_BUCKET}
+        VITE_APP_FIREBASE_FCM_VAPID_KEY: ${VITE_APP_FIREBASE_FCM_VAPID_KEY}
+        VITE_APP_USE_EMULATOR: ${VITE_APP_USE_EMULATOR:-true}
     ports:
-      - 5173:5173
+      - "80:80"
+    depends_on:
+      - emulator
+    networks:
+      - codelabz
+
+  # ── Development server (Vite HMR, port 5173) ────────────────────────────────
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    command: npm run dev
+    env_file:
+      - .env
+    ports:
+      - "5173:5173"
     volumes:
       - .:/app
+      - /app/node_modules
+    depends_on:
+      - emulator
     networks:
-      - main
+      - codelabz
+
+  # ── Firebase emulator suite ──────────────────────────────────────────────────
   emulator:
     image: spine3/firebase-emulator
     environment:
-      ENABLE_UI: true
+      ENABLE_UI: "true"
       GCP_PROJECT: demo-sampark
     ports:
-      - 5001:5001
-      - 9000:9000
-      - 8080:8080
-      - 8085:8085
-      - 5000:5000
-      - 4000:4000
+      - "4000:4000"   # Emulator UI
+      - "5000:5000"   # Hosting
+      - "5001:5001"   # Functions
+      - "8080:8080"   # Firestore
+      - "8085:8085"   # Pub/Sub
+      - "9000:9000"   # Realtime Database
     networks:
-      - main
+      - codelabz
 
 networks:
-  main: {}
+  codelabz:
+    driver: bridge
